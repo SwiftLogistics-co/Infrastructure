@@ -1,4 +1,4 @@
-# SwiftTrack Infrastructure Setup Guide
+# SwiftLogistics Infrastructure Setup Guide
 
 This document explains how to set up and run the local development infrastructure for the SwiftLogistics project.
 
