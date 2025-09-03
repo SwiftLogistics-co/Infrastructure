@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  # ----------------------
+  # PostgreSQL Database
+  # ----------------------
+  postgres:
+    image: postgres:15
+    container_name: swift_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-example}
+      POSTGRES_DB: ${POSTGRES_DB:-swiftlog}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  # ----------------------
+  # Redis (optional)
+  # ----------------------
+  redis:
+    image: redis:7
+    container_name: swift_redis
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # ----------------------
+  # Redpanda (Kafka-compatible broker)
+  # ----------------------
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: swift_redpanda
+    command: >
+      redpanda start --overprovisioned --smp 1 --memory 1G --reserve-memory 0M
+      --node-id 0 --check=false --kafka-addr PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092 --advertise-kafka-addr PLAINTEXT://redpanda:9092,EXTERNAL://localhost:29092
+    volumes:
+      - ./data/redpanda:/var/lib/redpanda/data
+    ports:
+      - "9092:9092"   # Kafka bootstrap port
+      - "29092:9092"  # Alternate port for local dev
+    restart: unless-stopped
+
+  # ----------------------
+  # Kafka UI for monitoring
+  # ----------------------
+  kafka-ui:
+    image: kafbat/kafka-ui:latest
+    container_name: swift_kafka_ui
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "local"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "redpanda:9092"
+    ports:
+      - "8081:8080"
+    depends_on:
+      - redpanda
+    restart: unless-stopped
+
+  # ----------------------
+  # Keycloak Auth Server
+  # ----------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    container_name: swift_keycloak
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
